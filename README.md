@@ -55,9 +55,9 @@ Using the below R code, the following columns in GS$GS_RESULT will be created:
 - GS_CONVERGED: If the glm converged (True/false).
 - GS_P_INT: p-value of the interaction of SNP_GWAS and GS_SNP (only estimated when GS_P is < 5e-7)
 - snp_GWAS_BETA: The beta value of the GS_SNP from the original GWAS.
-- snp_GWAS_P: The P value of the GS_SNP from the orifinal GWAS.
+- snp_GWAS_P: The P value of the GS_SNP from the original GWAS.
 - GS_DELTA_P: The orders of magnitude in p-value gained in the sub-gwas (rare to be positive, those that are interesting).
 - GS_CASES_Ns: A short representation of cases within the sub-gwas.
 - GS_CONTROLS_Ns: A short representation of controls within the sub-gwas.
-- GS_CASES_Rs: A short representation of the ratio of cases within the sub-gwas.
-- GS_CONTROLS_Rs: A short representation of the ratio of controls within the sub-gwas.
+- GS_CASES_Rs: A short representation of the fraction of cases within the sub-gwas.
+- GS_CONTROLS_Rs: A short representation of the fraction of controls within the sub-gwas.
