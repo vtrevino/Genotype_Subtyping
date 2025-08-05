@@ -69,7 +69,7 @@ The GS_RESULT within the GS list object will contain all combinations independen
 Code in R for estimation:
 ``````
    GS$GS_RESULT <- c()
-   MinSamplesPerGT <- 300
+   MinSamplesPerGT <- 500
    ntot <- length(GS$CONTROLS) + length(GS$CASES)
    ncalc <- 0
    zeroMatTab <- matrix(0,nrow=2,ncol=3,dimnames=list(c("0","1"),c("0","1","2")))
