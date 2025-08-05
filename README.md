@@ -279,8 +279,6 @@ for (i in i:nrow(GS$GWAS_SEED)) {
                     }
                 }
                 # Store results
-                #Xpt = gtMatrix[,"Phenotype"]
-                #Xgt = gtMatrix[,"Genotype"]
                 xT <- table(gtMatrix[,"Phenotype"], gtMatrix[,"Genotype"])
                 if (nrow(xT) != 2 || ncol(xT) != 3) {
                     xMT <- zeroMatTab
