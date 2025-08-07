@@ -160,9 +160,9 @@ Code in R for estimation:
 ``````
 
 ## Practical example performed in Crohn's Disease data
-The data is not available here and the code is shown for demonstrative purposes.
+The data is not available here because it shall be requested from the proper repositories. Thus, the code is shown for demonstrative purposes only.
 
-The real folder names have been modified to avoid inclusion of user or personal information.
+The actual folder names have been modified to exclude user or personal information.
 
 
 ``````
@@ -316,4 +316,137 @@ GS$GS_RESULT$GS_CONTROLS_Rs <- with(GS$GS_RESULT, paste(GS_N_CONTROLS,round(GS_N
 
 subset(GS$GS_RESULT, GS_P < 5e-7 & DELTA_P > 1)
 
+``````
+
+## Generation of Genotype Subtyping positive SNPs
+The generation of GS-positive SNPs relies on the _q_ parameter from Hardy-Weinberg equation.
+
+
+``````
+simSNP <- function(n, q) {
+   # HWE: p^2 + 2pq + q^2 = 1, p+q=1
+   # q^2 is G2 homozygous
+   # p^2 is G0 homozygous
+   # 2pq is G1 het
+	p = 1-q
+	r = c(rep(0:2, times=n*c(p*p, 2*p*q, q*q)))
+	if (length(r) < n) r = c(r,rep(2,n-length(r)))
+	if (length(r) > n) r = r[1:n]
+	r
+}
+
+simSNP.sample <- function(n, q) {
+	sample(simSNP(n,q))
+}
+
+## Generate 5 SNP´s around q=0.145
+msim <- c()
+for (i in 1:5) {
+	CD <- simSNP.sample(4508,0.13)
+	HE <- simSNP.sample(9194,0.16)
+
+	CD.0 <- simSNP.sample(sum(CD == 0),0.120)
+	CD.1 <- simSNP.sample(sum(CD == 1),0.160)
+	CD.2 <- simSNP.sample(sum(CD == 2),0.180)
+
+	HE.0 <- simSNP.sample(sum(HE == 0),0.151)
+	HE.1 <- simSNP.sample(sum(HE == 1),0.140)
+	HE.2 <- simSNP.sample(sum(HE == 2),0.160)
+
+	xSNP <- c(CD, HE)
+	dSNP <- numeric(length(CD))
+	hSNP <- numeric(length(HE))
+	dSNP[c(which(CD == 0),which(CD == 1), which(CD == 2))] <- c(CD.0,CD.1,CD.2)
+	hSNP[c(which(HE == 0),which(HE == 1), which(HE == 2))] <- c(HE.0,HE.1,HE.2)
+	msim <- cbind(msim, xSNP, ySNP=c(dSNP, hSNP))
+}
+colnames(msim) <- paste(rep(c("SimSeed-145-","SimGenSub-145-"),times=5),rep(1:5,each=2),sep="")
+
+## Generate another 5 SNP´s around q=0.45
+for (i in 1:5) {
+	CD <- simSNP.sample(4508,0.43)
+	HE <- simSNP.sample(9194,0.47)
+
+	CD.0 <- simSNP.sample(sum(CD == 0),0.415)
+	CD.1 <- simSNP.sample(sum(CD == 1),0.445)
+	CD.2 <- simSNP.sample(sum(CD == 2),0.445)
+
+	HE.0 <- simSNP.sample(sum(HE == 0),0.485)
+	HE.1 <- simSNP.sample(sum(HE == 1),0.455)
+	HE.2 <- simSNP.sample(sum(HE == 2),0.455)
+
+	xSNP <- c(CD, HE)
+	dSNP <- numeric(length(CD))
+	hSNP <- numeric(length(HE))
+	dSNP[c(which(CD == 0),which(CD == 1), which(CD == 2))] <- c(CD.0,CD.1,CD.2)
+	hSNP[c(which(HE == 0),which(HE == 1), which(HE == 2))] <- c(HE.0,HE.1,HE.2)
+	msim <- cbind(msim, xSNP, ySNP=c(dSNP, hSNP))
+}
+colnames(msim)[1:10+10] <- paste(rep(c("SimSeed-450-","SimGenSub-450-"),times=5),rep(1:5,each=2),sep="")
+
+``````
+
+Then I used the following code to alter the original files to properly perform the GWAS analysis using SNPTEST.
+
+``````
+fam_file <- "/Volumes/<folder>/FOR-SIMULATION/CD_all_samples_13K_RANDOM.fam"
+fam <- read.delim(fam_file, header=FALSE, as.is=TRUE, sep=" ")
+#fam$V6 == 1 (Healthy), == 2 (Crohn's)
+fam2 <- matrix(NA, nrow=nrow(fam), ncol=ncol(msim))
+fam2[c(which(fam$V6 == 1),which(fam$V6 == 2)),] <- rbind(msim[1:9194 + 4508,], msim[1:4508,])
+colnames(fam2) <- colnames(msim)
+famOK <- cbind(fam, fam2)
+rownames(famOK) <- as.character(famOK$V1)
+
+
+ped_file = "/Volumes/<folder>/FOR-SIMULATION/CD_all_snp.ped"
+pedinf <- file(ped_file, open="r")
+pedoutf <- file(paste0(sub(".ped$","",ped_file),"-10-sim.ped"),open="w")
+nblock <- 100
+nwritten <- 0
+simCols <- colnames(msim)
+idsOK <- rownames(famOK)
+
+famVectorOK <- apply(famOK[,simCols], 1, function(x) paste(c("1 1","1 2","2 2")[x+1],collapse="\t"))
+
+ped <- numeric(nblock)
+while (length(ped) == nblock) {
+	cat("Reading next",nblock,", written",nwritten,"\n")
+	flush.console()
+	ped <- readLines(pedinf, n=nblock)
+	ids <- sub("\t.+$","",substr(ped,1,50))
+	stopifnot(all(ids %in% idsOK))
+	if (any(table(ids) > 1)) {
+			cat("Duplicated lines detected. Len=",length(ped),". Dups:",sum(table(ids) > 1),"\n")
+			ui <- unique(ids)
+			ped <- ped[unlist(sapply(ui, function(iid) which(ids==iid)[1]))]
+			cat("Actual lines Len=",length(ped),"\n")
+	}
+	ped <- paste(ped,famVectorOK[ids],sep="\t")
+	writeLines(ped, pedoutf)
+	nwritten <- nwritten + length(ped)
+} 
+close(pedinf)
+close(pedoutf)
+cat("Total written",nwritten,"\n")
+
+map_file = "/Volumes/<folder>/FOR-SIMULATION/CD_all_snp.map"
+map <- readLines(map_file)
+map <- c(map, gsub("-","_",paste(1:length(simCols),simCols,"0",1:length(simCols),sep="\t")))
+writeLines(map, paste0(sub(".map$","",map_file),"-10-sim.map"))
+``````
+
+Then in shell:
+
+``````
+plink="/<folder>/plink_mac_20231211/plink"
+cdsimdata="/<folder>/FOR-SIMULATION/CD_all_snp-10-sim"
+cdsimbed="/<folder>/FOR-SIMULATION/CD_all_snp-10-sim-bed"
+$plink --file $cdsimdata --make-bed --out $cdsimbed
+
+snptest="/<folder>/snptest_v2.5.6_MacOSX_x86_64/snptest_v2.5.6"
+crohn="/<folder>/FOR-SIMULATION/CD_all_snp-10-sim-bed.bed"
+crohn_sample_RAN="/<folder>/FOR-SIMULATION/samplefilepcaoiginal-RANDOM-BIN.sample"
+
+$snptest -data $crohn $crohn_sample_RAN -frequentist 1 -method score -pheno bin  -cov_all -chunk 10000 -o CD_all_snp-10-sim-bed.txt
 ``````
